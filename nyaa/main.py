@@ -15,20 +15,20 @@ class NyaaTorrents(TorrentMagnetProvider):
 
     urls = {
          'test': 'http://www.nyaa.eu/',
-         'detail': '%s/?page=view&tid=%s',
-         'search': '%s/?page=search&cats=1_37&filter=0&term=%s&sort=2'
+         'detail': 'http://www.nyaa.eu/?page=view&tid=%s',
+         'search': 'http://www.nyaa.eu/?page=search&cats=1_37&filter=0&term=%s&sort=2'
     }
 
     cat_ids = [
-       ([1_37], ['English-translated Anime'])
+       (['1_37'], ['English-translated Anime'])
     ]
 
-    cat_backup_id = 1_0
+    cat_backup_id = None
     disable_provider = False
     http_time_between_calls = 0
 
     proxy_list = [
-        'http://www.nyaa.eu/',,
+        'http://www.nyaa.eu/',
     ]
 
     def __init__(self):
@@ -50,33 +50,33 @@ class NyaaTorrents(TorrentMagnetProvider):
             if data:
                 try:
                     soup = BeautifulSoup(data)
-                    results_table = soup.find('table', attrs = {'id': 'searchResult'})
+                    results_table = soup.find('table', attrs = {'class': 'tlist'})
 
                     if not results_table:
                         return
 
                     try:
-                        total_pages = len(soup.find('div', attrs = {'align': 'center'}).find_all('a'))
+                        total_pages = len(soup.find('table', attrs = {'class': 'tlistpages'}).find_all('a'))
                     except:
                         pass
 
                     entries = results_table.find_all('tr')
                     for result in entries[2:]:
                         link = result.find(href = re.compile('torrent\/\d+\/'))
-                        download = result.find(href = re.compile('magnet:'))
+                        download = result.find(href = re.compile('download'))
 
                         try:
-                            size = re.search('Size (?P<size>.+),', unicode(result.select('font.detDesc')[0])).group('size')
+                            size = re.search('Size (?P<size>.+),', unicode(result.select('td.tlistsize')[0])).group('size')
                         except:
                             continue
 
                         if link and download:
 
                             def extra_score(item):
-                                trusted = (0, 10)[result.find('img', alt = re.compile('Trusted')) != None]
-                                vip = (0, 20)[result.find('img', alt = re.compile('VIP')) != None]
-                                confirmed = (0, 30)[result.find('img', alt = re.compile('Helpers')) != None]
-                                moderated = (0, 50)[result.find('img', alt = re.compile('Moderator')) != None]
+                                trusted = (0, 10)[result.find('tr', attrs = {'class': 'trusted'}) != None]
+                                vip = (0, 20)[result.find('tr', attrs = {'class': 'trusted'}) != None]
+                                confirmed = (0, 30)[result.find('tr', attrs = {'class': 'remake'}) != None]
+                                moderated = (0, 50)[result.find('tr', attrs = {'class': 'aplus'}) != None]
 
                                 return confirmed + trusted + vip + moderated
 
@@ -86,8 +86,8 @@ class NyaaTorrents(TorrentMagnetProvider):
                                 'url': download['href'],
                                 'detail_url': self.getDomain(link['href']),
                                 'size': self.parseSize(size),
-                                'seeders': tryInt(result.find_all('td')[2].string),
-                                'leechers': tryInt(result.find_all('td')[3].string),
+                                'seeders': tryInt(result.find_all('td')[4].string),
+                                'leechers': tryInt(result.find_all('td')[5].string),
                                 'extra_score': extra_score,
                                 'get_more_info': self.getMoreInfo
                             })
@@ -113,9 +113,9 @@ class NyaaTorrents(TorrentMagnetProvider):
                 try:
                     data = self.urlopen(proxy, timeout = 3, show_error = False)
                 except:
-                    log.debug('Failed tpb proxy %s', proxy)
+                    log.debug('Failed nyaa proxy %s', proxy)
 
-                if 'title="Pirate Search"' in data:
+                if 'title="Nyaa Search"' in data:
                     log.debug('Using proxy: %s', proxy)
                     self.domain = proxy
                     break
@@ -123,15 +123,15 @@ class NyaaTorrents(TorrentMagnetProvider):
                 Env.prop(prop_name, time.time())
 
         if not self.domain:
-            log.error('No TPB proxies left, please add one in settings, or let us know which one to add on the forum.')
+            log.error('No Nyaa proxies left, please add one in settings, or let us know which one to add on the forum.')
             return None
 
         return cleanHost(self.domain).rstrip('/') + url
 
     def getMoreInfo(self, item):
-        full_description = self.getCache('tpb.%s' % item['id'], item['detail_url'], cache_timeout = 25920000)
+        full_description = self.getCache('nya.%s' % item['id'], item['detail_url'], cache_timeout = 25920000)
         html = BeautifulSoup(full_description)
-        nfo_pre = html.find('div', attrs = {'class':'nfo'})
+        nfo_pre = html.find('div', attrs = {'class':'viewdescription'})
         description = toUnicode(nfo_pre.text) if nfo_pre else ''
 
         item['description'] = description
